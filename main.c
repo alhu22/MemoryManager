@@ -19,25 +19,42 @@ void mem_init(size_t size){
 }
 
 void* mem_alloc(size_t size){
-    Block * allocated_block = free_list;
-    allocated_block->size = size;
-    allocated_block->is_free = false;
+    Block * current = free_list;
+    while (current != NULL) {
+        if (current->is_free && current->size >= size) {
+            // Split the block if needed
+            if (current->size > size + sizeof(Block)) {
+                Block *new_block = (Block *)((char *)current + sizeof(Block) + size);
+                new_block->size = current->size - size - sizeof(Block);
+                new_block->is_free = 1;
+                new_block->next = current->next;
+                current->next = new_block;
+            }
 
-    free_list = (Block *)((char *)free_list + size + sizeof(Block));
-    allocated_block->next = free_list;
-    return (char *)allocated_block + sizeof(Block);
+            current->is_free = 0;
+            current->size = size;
 
+            return (void *)((char *)current + sizeof(Block));
+        }
+
+        current = current->next;
+    }
+
+    return NULL; // No suitable block found
 }
+
 
 void mem_free(void* block){
     Block *block_to_free = (Block *)((char *)block - sizeof(Block));
-    block_to_free->is_free = true;
+    block_to_free->is_free = 1;
+   
 }
 
 void* mem_resize(void* block, size_t size){
     Block *block_to_resize = (Block *)((char *)block - sizeof(Block));
     block_to_resize->size = size;
-    return block;
+    block_to_resize->is_free = 0;
+    return (char *)block_to_resize + sizeof(Block);
 }
 
 void mem_deinit(){
@@ -108,13 +125,7 @@ Node* list_search(Node** head, int data){
     return NULL;
 }
 
-// void list_display(Node** head){
-//     Node* current = *head;
-//     while(current != NULL){
-//         printf("%d\n", current->data);
-//         current = current->next;
-//     }
-// }
+
 
 void list_display(Node** head, Node* start_node, Node* end_node){
     Node* current = start_node;
@@ -147,17 +158,21 @@ void list_cleanup(Node** head){
 
 int main() {
     mem_init(1000);
-    char text[] = "Hello World";
-    int *block = mem_alloc(100);
-    int *block2 = mem_alloc(110);
-    int *block3 = mem_alloc(120);
-    *block = 10;
-    *block2 = 20;
-    Block *block_meta = (Block *)((char *)block - sizeof(Block));
-    Block *block_met1 = (Block *)((char *)block2 - sizeof(Block));
-    // mem_free(block);
-    printf("Block: %d\n", memory_pool[0]);
-
+    Node* head;
+    list_init(&head);
+    list_insert(&head, 1);
+    list_insert(&head, 2);
+    list_insert(&head, 5);
+    list_insert(&head, 5);
+    list_delete(&head, 1);
+    list_display(&head, head, NULL);
+    int *ptr = mem_alloc(10);
+    Block *block = (Block *)((char *)ptr - sizeof(Block));
+    int *ptr1 = mem_resize(block, 110);
+    Block *block1 = (Block *)((char *)ptr1 - sizeof(Block));
+    printf("%ld\n", block1->size);
+    mem_free(block1);
+    printf("%d\n", block1->is_free);
 
 return 0;
 
