@@ -155,25 +155,3 @@ void list_cleanup(Node** head){
     }
     *head = NULL;
 }
-
-int main() {
-    mem_init(1000);
-    Node* head;
-    list_init(&head);
-    list_insert(&head, 1);
-    list_insert(&head, 2);
-    list_insert(&head, 5);
-    list_insert(&head, 5);
-    list_delete(&head, 1);
-    list_display(&head, head, NULL);
-    int *ptr = mem_alloc(10);
-    Block *block = (Block *)((char *)ptr - sizeof(Block));
-    int *ptr1 = mem_resize(block, 110);
-    Block *block1 = (Block *)((char *)ptr1 - sizeof(Block));
-    printf("%ld\n", block1->size);
-    mem_free(block1);
-    printf("%d\n", block1->is_free);
-
-return 0;
-
-}
