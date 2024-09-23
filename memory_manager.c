@@ -181,37 +181,4 @@ void print_all_Nodes(Node** head){
     }
 }
 
-int main(){
-    mem_init(1000);
-    int* a = (int*)mem_alloc(5);
-    int* b = (int*)mem_alloc(6);    
-    int* c = (int*)mem_alloc(7);
-    int* d = (int*)mem_alloc(8);        // blocksize 24 + 8 = 32
-    mem_free(c);
-    mem_resize(d, 10);
-    Node* head;
-    list_init(&head);
-    list_insert(&head, 1);
-    list_insert(&head, 2);
-    list_insert(&head, 3);
-    list_insert(&head, 4);
-    list_insert(&head, 5);
-    list_insert(&head, 6);
-    
-    list_delete(&head, 4);
-    list_insert(&head, 7);
-
-    // n = head + 2 * number of nodes after head
-    Node* n = head + 8;
-    list_insert_before(&head, n, 8);
-    // Node* n = list_search(&head, 5);
-    // list_display(&head, head, n);
-    // printf("Number of nodes: %d\n", list_count_nodes(&head));
-    // list_display(&head, head,NULL);  display all nodes
-    // list_cleanup(&head);
-    // mem_deinit();
-    print_all_blocks();
-    print_all_Nodes(&head);
-    return 0;
-}
 
