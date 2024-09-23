@@ -1,81 +1,91 @@
-#include <stdio.h>
-#include <stdbool.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdint.h>
+#include <stdio.h>      // printf
+#include <stdlib.h>       // malloc
+#include <stdint.h>      // uint16_t
+
 typedef struct Block {
-    size_t size;
+    int size;
     int is_free;
     struct Block *next;
 } Block;
 
-char *memory_pool;
-Block *free_list;
+int* memory_pool;
+Block* head_pool;
 
-void mem_init(size_t size){
-    char pool[size];
-    memory_pool = pool;
-    free_list = (Block *)memory_pool;
+void mem_init(int size){
+    memory_pool = (int *)malloc(size);
+    head_pool = (Block *)memory_pool;
+
+    head_pool->size = size - sizeof(Block);
+    head_pool->is_free = 1;
+    head_pool->next = NULL;
 }
 
-void* mem_alloc(size_t size){
-    Block * current = free_list;
+void* mem_alloc(int size){
+    Block * current = head_pool;
     while (current != NULL) {
-        if (current->is_free && current->size >= size) {
-            // Split the block if needed
-            if (current->size > size + sizeof(Block)) {
-                Block *new_block = (Block *)((char *)current + sizeof(Block) + size);
-                new_block->size = current->size - size - sizeof(Block);
-                new_block->is_free = 1;
-                new_block->next = current->next;
-                current->next = new_block;
+        if (current->is_free && current->size >= size + sizeof(Block)) {
+            if (current->next != NULL){   // if block exist but is free
+                current->is_free = 0;
+                return (void *)((char *)current + sizeof(Block));
             }
+            Block *new_block = (Block *)((char *)current + sizeof(Block) + size);
+            new_block->size = current->size - size - sizeof(Block);
+            new_block->is_free = 1;
+            current->next = new_block;
 
             current->is_free = 0;
-            current->size = size;
-
+            current->size = size + sizeof(Block);
             return (void *)((char *)current + sizeof(Block));
         }
-
         current = current->next;
     }
-
-    return NULL; // No suitable block found
+    return NULL;
 }
-
 
 void mem_free(void* block){
     Block *block_to_free = (Block *)((char *)block - sizeof(Block));
     block_to_free->is_free = 1;
-   
+    
 }
 
 void* mem_resize(void* block, size_t size){
     Block *block_to_resize = (Block *)((char *)block - sizeof(Block));
-    block_to_resize->size = size;
-    block_to_resize->is_free = 0;
-    return (char *)block_to_resize + sizeof(Block);
+    if (block_to_resize->size >= size) {
+        block_to_resize->size = size;
+        return (char *)block_to_resize + sizeof(Block);
+    } else {
+        block_to_resize->is_free = 1;
+        return (int*)mem_alloc(size);
+    }
 }
 
 void mem_deinit(){
-    free_list = NULL;
-    memory_pool = NULL;
+    head_pool = NULL;
+    free(memory_pool);
 }
 
 typedef struct Node {
 uint16_t data; 
 struct Node* next;
-}Node;
+} Node;
 
 void list_init(Node** head) {
     *head = NULL;
 }
 
-void list_insert(Node** head, int data){
+void list_insert(Node** head, int data) {
     Node* new_node = (Node*)mem_alloc(sizeof(Node));
     new_node->data = data;
-    new_node->next = *head;
-    *head = new_node;
+    new_node->next = NULL;
+    if (*head == NULL) {
+        *head = new_node;
+    } else {
+        Node* temp = *head;
+        while (temp->next != NULL) {
+            temp = temp->next;
+        }
+        temp->next = new_node;
+    }
 }
 
 void list_insert_after(Node* prev_node, int data){
@@ -94,38 +104,30 @@ void list_insert_before(Node** head, Node* next_node, int data){
         current = current->next;
     }
     current->next = new_node;
+
 }
 
 void list_delete(Node** head, int data){
     Node* current = *head;
     Node* prev = NULL;
-    while(current != NULL){
-        if(current->data == data){
-            if(prev == NULL){
-                *head = current->next;
-            }else{
-                prev->next = current->next;
-            }
-            mem_free(current);
-            return;
-        }
+    while(current->data != data){
         prev = current;
         current = current->next;
     }
+    if(current->next != NULL){
+        prev->next = current->next;
+    }else{
+        prev->next = NULL;
+    }
+    mem_free(current);
 }
-
 Node* list_search(Node** head, int data){
     Node* current = *head;
-    while(current != NULL){
-        if(current->data == data){
-            return current;
-        }
+    while(current->data != data){
         current = current->next;
     }
-    return NULL;
+    return current;
 }
-
-
 
 void list_display(Node** head, Node* start_node, Node* end_node){
     Node* current = start_node;
@@ -155,3 +157,61 @@ void list_cleanup(Node** head){
     }
     *head = NULL;
 }
+
+void print_all_blocks() {
+    Block *current = head_pool;
+    while (current != NULL) {
+        if(current->size == sizeof(Node) + sizeof(Block)){
+            Node* node = (Node*)((char*)current + sizeof(Block));
+            printf("Block at %p, Size: %u, Is Free: %d Node at %p, Data: %d \n", 
+            (void *)current, current->size, current->is_free, (void*)node, node->data);
+            }else{
+                printf("Block at %p, Size: %u, Is Free: %d\n", 
+               (void *)current, current->size, current->is_free);
+            }
+        current = current->next;
+        }
+    }
+
+void print_all_Nodes(Node** head){
+    Node* current = *head;
+    while(current != NULL){
+        printf("Node at %p, Data: %d\n", (void*)current, current->data);
+        current = current->next;
+    }
+}
+
+int main(){
+    mem_init(1000);
+    int* a = (int*)mem_alloc(5);
+    int* b = (int*)mem_alloc(6);    
+    int* c = (int*)mem_alloc(7);
+    int* d = (int*)mem_alloc(8);        // blocksize 24 + 8 = 32
+    mem_free(c);
+    mem_resize(d, 10);
+    Node* head;
+    list_init(&head);
+    list_insert(&head, 1);
+    list_insert(&head, 2);
+    list_insert(&head, 3);
+    list_insert(&head, 4);
+    list_insert(&head, 5);
+    list_insert(&head, 6);
+    
+    list_delete(&head, 4);
+    list_insert(&head, 7);
+
+    // n = head + 2 * number of nodes after head
+    Node* n = head + 8;
+    list_insert_before(&head, n, 8);
+    // Node* n = list_search(&head, 5);
+    // list_display(&head, head, n);
+    // printf("Number of nodes: %d\n", list_count_nodes(&head));
+    // list_display(&head, head,NULL);  display all nodes
+    // list_cleanup(&head);
+    // mem_deinit();
+    print_all_blocks();
+    print_all_Nodes(&head);
+    return 0;
+}
+
